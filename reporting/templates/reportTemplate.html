@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>GUIDE-Seq Results: {{ job_name }}</title>
+</head>
+<body>
+    <img src="{{ beacon_logo_path }}" style="width:150px;height:auto;">
+    <h1>GUIDE-Seq Results</h1>
+    <h2>{{ job_name }}</h2>
+    <h2>{{ date }}</h2>
+
+    <h3>Summary</h3>
+    <ul>
+        <li>Organism: {{ organism }}</li>
+        <li>Cell Type: {{ cell_type }}</li>
+        <li>Genome: {{ genome_name }}</li>
+        <li>Nuclease: {{ nuclease }}</li>
+        <li>Sequencer: {{ sequencer }}</li>
+    </ul>
+
+    <p>
+    {{ samples_count }} samples with {{ total_reads }} total reads were analyzed and {{ total_cleaved }} cleavage sites were found. Of these, X are on-target cleavage sites. X off-target cleavage sites were found, of which X lie in exons, Y in introns and Z in inter-genic regions
+    </p>
+
+    <h3>Read Mapping Statistics</h3>
+        <table>
+            <tr>
+                <th></th>
+                <th>Total Reads</th>
+                <th>High Quality Mapped Reads</th>
+                <th>Number of On-target Reads</th>
+            </tr>
+            <tr>
+                <td></td>
+                <td>100</td>
+                <td>50</td>
+                <td>2</td>
+            </tr>
+        </table>
+    
+    {% for sample in samples %}
+    <h3>Sample {{ loop.index }}</h3>
+        <table>
+        <tr>
+            <th>Cleavage ID</th>
+            <th>Location</th>
+            <th>On-target</th>
+            <th>GUIDE-Seq Reads</th>
+            <th>Annotation</th>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        </table>
+
+        <h4>Figure</h4>
+        <object id="svg1" data="{{ visualization_path }}" type="image/svg+xml"></object>
+    {% endfor %}
+</body>
+</html>

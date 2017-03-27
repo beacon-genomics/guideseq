@@ -1,6 +1,7 @@
 *.py[cod]
 test/output
 .genome
+.DS_Store
 
 # Genome indices
 *.amb
