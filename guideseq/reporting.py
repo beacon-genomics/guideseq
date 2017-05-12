@@ -12,56 +12,53 @@ The following are required inputs:
 import os
 import sys
 import glob
-import time 
+import time
+import copy
+import shutil
+import subprocess
 
 import yaml
 import logging
+import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML
 
+from gsToBed import gsToBed
+from helpers import countNumberOfLines, countNumberOfLinesInFolder
+
 BEACON_LOGO_PATH = "reporting/images/BeaconGenomicsLogo.png"
 
-# logger = logging.getLogger('root')
-
-def countNumberOfLines(filepath):
-    """
-    Given filepath, return number of lines in that file
-    """
-    with open(filepath) as f:
-        count = 0
-        for line in f:
-            count = count + 1
-    return count
-
-
-def countNumberOfLinesInFolder(folder_path):
-    """
-    Given folder path, return total number of lines in all files in that folder
-    """
-    count = 0
-    filepaths = glob.glob(os.path.join(folder_path, "*.fastq"))
-    for filepath in filepaths:
-        count = count + countNumberOfLines(filepath)
-    return count
-
-
 def report(manifest_path):
+
+    """
+    Manifest Parsing
+    """
     with open(manifest_path, 'r') as f:
         template_vars = yaml.load(f)
 
     output_folder = template_vars['output_folder']
 
     template_vars['date'] = time.strftime("%m/%d/%Y")
-    template_vars['visualization_path'] = "test/reporting/visualization/EMX1_identifiedOfftargets_visualization.svg"
+    template_vars['visualization_path'] = "test/data/visualization/EMX1_identifiedOfftargets_visualization.svg"
     template_vars['beacon_logo_path'] = BEACON_LOGO_PATH
     template_vars['samples_count'] = len(template_vars['samples'])
 
-    # For each sample, determine everything...
-    for sample in template_vars['samples']:
-        if sample == "control":
-            pass
-        
+    samples = template_vars['samples']
 
+    if 'control' in samples:
+        del samples['control']
+
+    """
+    Setup
+    """
+    # Create temp folder
+    temp_folder = os.path.join(output_folder, 'tmp')
+    if not os.path.exists(temp_folder):
+        os.makedirs(temp_folder)
+
+    """
+    GLOBAL STATS
+    """
     # Calculate total reads analyzed
     consolidated_path = os.path.join(template_vars['output_folder'], "consolidated")
     template_vars['total_reads'] = countNumberOfLinesInFolder(consolidated_path)
@@ -69,18 +66,77 @@ def report(manifest_path):
     # Calculate total number of cleavage sites found
     identified_path = os.path.join(template_vars['output_folder'], "identified")
     total_cleaved = countNumberOfLinesInFolder(identified_path)
-    control_count = countNumberOfLines("test/reporting/identified/control_identifiedOfftargets.txt")
+    control_count = countNumberOfLines("test/data/identified/control_identifiedOfftargets.txt")
     template_vars['total_cleaved'] = total_cleaved - (control_count) - (template_vars['samples_count'] - 1)
 
+
+    """
+    CONDITIONS
+    """
+    # For each listed condition, determine how many samples were run in those conditions
+    for i, condition in enumerate(template_vars['conditions']):
+        key = list(condition.keys())[0]
+        template_vars['conditions'][i][key]['count'] = 0
+        for sample in template_vars['samples']:
+            if template_vars['samples'][sample]['conditions'] == key:
+                template_vars['conditions'][i][key]['count'] += 1
+
+    """
+    SAMPLES
+    """
+    samples = copy.deepcopy(template_vars['samples'])
+    total_reads_command = 'samtools view {0}'
+    high_quality_filter_command = 'samtools view {0} -q 50 -F 2176'
+    annotation_command = 'bedtools closest -a {0} -b {1} -d > {2}'
+    dnase_command = 'bedtools intersect -a {0} -b {1}'
+
+    for sample_name, sample in samples.items():
+
+        #Count total number of reads
+        alignment_sam = os.path.join(template_vars['output_folder'], 'aligned', sample_name + '.sam')
+        tmp_command = total_reads_command.format(alignment_sam)
+        total_reads = subprocess.check_output(tmp_command + ' | wc -l', shell=True)
+        sample['total_reads'] = int(total_reads.strip())
+
+        # Count number of high quality mapped reads
+        tmp_command = high_quality_filter_command.format(alignment_sam)
+        hqmr = subprocess.check_output(tmp_command + ' | wc -l', shell=True)
+        sample['hqmr'] = int(hqmr.strip())
+
+        # Count number of on and off-target reads
+        on_target_reads = 0
+        off_target_reads = 0
+        identified_path = os.path.join(template_vars['output_folder'], 'identified', sample_name + '_identifiedOfftargets.txt')
+        identified_table = pd.read_csv(identified_path, sep='\t', index_col=False)
+
+        on_targets = identified_table[identified_table['Mismatches'] == 0]
+        off_targets = identified_table[identified_table['Mismatches'] > 0]
+
+        sample['ontarget_count'] = on_targets.sum()['bi.sum.mi']
+        sample['offtarget_count'] = off_targets.sum()['bi.sum.mi']
+        # print(sample['ontarget_count'])
+
+        # Make temp BED file
+        bedfile_path = os.path.join(temp_folder, sample_name + '.bed')
+        gsToBed(identified_path, bedfile_path)
+
+        # Get gene annotations
+        annotation_path = os.path.join(temp_folder, sample_name + '_annotation.bed')
+        tmp_command = annotation_command.format(bedfile_path, template_vars['gencode_gtf'], annotation_path)
+
+
+
+    template_vars['samples'] = samples
+
     # Calculate number of on-target sites
-    
+
 
     # Calculate total number of off-target sites
 
-    # Determine 
+    # Determine
 
     env = Environment(loader=FileSystemLoader('.'))
-    template = env.get_template("reporting/template/reportTemplate.html")
+    template = env.get_template("reporting/templates/reportTemplate.html")
 
     # Generate the HTML and save it
     html_out_path = ""
@@ -90,7 +146,14 @@ def report(manifest_path):
 
     # Render the HTML into PDF and save it
     pdf_out_path = "beacon_test.pdf"
-    HTML(string=html_out, base_url=".").write_pdf(pdf_out_path, stylesheets=["reporting/style/beaconReports.css"])
+    HTML(string=html_out, base_url=".").write_pdf(pdf_out_path, stylesheets=["reporting/styles/beaconReports.css"])
+
+    """
+    TEARDOWN
+    """
+    # Delete temp folder
+    if os.path.exists(temp_folder):
+        shutil.rmtree(temp_folder, ignore_errors=True)
 
 def main():
     report(sys.argv[1])

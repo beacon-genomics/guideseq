@@ -1,19 +1,14 @@
 job_name: CCR5 knockout experiment
 
 reference_genome: test/test_genome.fa
-output_folder: test/reporting
+output_folder: test/reporting/data
+reporting_output: test/reporting
 
 bwa: bwa
 bedtools: bedtools
 
-demultiplex_min_reads: 1000
-
-cell_type: U2OS
-organism: Human
-genome_name: hg19
-nuclease: Cas9 (VRER variant)
-sequencer: MiSeq
-
+gencode_gtf: ~/ReferenceData/gencode.v19.annotation.SORTED.gtf
+dnase_bed: ~/ReferenceData/wgEncodeAwgDnaseMasterSites.bed
 
 undemultiplexed:
     forward: test/data/undemultiplexed/undemux.r1.fastq.gz
@@ -27,9 +22,35 @@ samples:
         barcode1: CTCTCTAC
         barcode2: CTCTCTAT
         description: Control
+        conditions: CD34-MYC-10nm
 
-    EMX1:
+    EMX1-10nm:
         target: GAGTCCGAGCAGAAGAAGAANGG
         barcode1: TAGGCATG
         barcode2: TAGATCGC
-        description: EMX_site1
+        conditions: CD34-MYC-10nm
+
+    EMX1-20nm:
+        target: GAGTCCGAGCAGAAGAAGAANGG
+        barcode1: TAGGCATG
+        barcode2: TAGATCGC
+        conditions: CD34-MYC-20nm
+
+  
+conditions:
+    - CD34-MYC-10nm:
+        demultiplex_min_reads: 1000
+        organism: Human
+        cell_type: U2OS
+        genome_name: hg19
+        nuclease: Cas9 (VRER variant)
+        sequencer: MiSeq
+
+    - CD34-MYC-20nm:
+        demultiplex_min_reads: 1000
+        organism: Human
+        cell_type: U2OS
+        genome_name: hg19
+        nuclease: Cas9 (VRER variant)
+        sequencer: MiSeq
+    

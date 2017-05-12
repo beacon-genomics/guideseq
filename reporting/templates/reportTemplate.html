@@ -8,53 +8,79 @@
     <img src="{{ beacon_logo_path }}" style="width:150px;height:auto;">
     <h1>GUIDE-Seq Results</h1>
     <h2>{{ job_name }}</h2>
-    <h2>{{ date }}</h2>
+    <h2>Generated {{ date }}</h2>
 
     <h3>Summary</h3>
-    <ul>
-        <li>Organism: {{ organism }}</li>
-        <li>Cell Type: {{ cell_type }}</li>
-        <li>Genome: {{ genome_name }}</li>
-        <li>Nuclease: {{ nuclease }}</li>
-        <li>Sequencer: {{ sequencer }}</li>
-    </ul>
-
-    <p>
-    {{ samples_count }} samples with {{ total_reads }} total reads were analyzed and {{ total_cleaved }} cleavage sites were found. Of these, X are on-target cleavage sites. X off-target cleavage sites were found, of which X lie in exons, Y in introns and Z in inter-genic regions
-    </p>
+    <table>
+        <tr>
+            <th>Condition</th>
+            <th>Organism</th>
+            <th>Cell Type</th>
+            <th>Genome</th>
+            <th>Nuclease</th>
+            <th>Sequencer</th>
+            <th>Number of Samples</th>
+        </tr>
+        {% for condition_i in conditions %}
+            {% for name, condition in condition_i.items() %}
+                <tr>
+                    <td>{{ name }}</td>
+                    <td>{{ condition.organism }}</td>
+                    <td>{{ condition.cell_type }}</td>
+                    <td>{{ condition.genome_name }}</td>
+                    <td>{{ condition.nuclease }}</td>
+                    <td>{{ condition.sequencer }}</td>
+                    <td>{{ condition.count }}</td>
+                </tr>
+            {% endfor %}
+        {% endfor %}
+    </table>
 
     <h3>Read Mapping Statistics</h3>
         <table>
             <tr>
-                <th></th>
+                <th>Sample</th>
+                <th>Condition</th>
                 <th>Total Reads</th>
                 <th>High Quality Mapped Reads</th>
                 <th>Number of On-target Reads</th>
+                <th>Number of Off-target Reads</th>
             </tr>
-            <tr>
-                <td></td>
-                <td>100</td>
-                <td>50</td>
-                <td>2</td>
-            </tr>
+            {% for name, sample in samples.items() %}
+                    <tr>
+                        <td>{{ name }}</td>
+                        <td>{{ sample.conditions }}</td>
+                        <td>{{ sample.total_reads }}</td>
+                        <td>{{ sample.hqmr }}</td>
+                        <td>{{ sample.ontarget_count }}</td>
+                        <td>{{ sample.offtarget_count }}</td>
+                    </tr>
+            {% endfor %}
         </table>
     
-    {% for sample in samples %}
-    <h3>Sample {{ loop.index }}</h3>
+    {% for name, sample in samples.items() %}
+    <section>
+    <h3>Sample {{ loop.index }}: {{ name }}</h3>
         <table>
         <tr>
             <th>Cleavage ID</th>
             <th>Location</th>
-            <th>On-target</th>
+            <th>Targeting Status</th>
             <th>GUIDE-Seq Reads</th>
-            <th>Annotation</th>
+            <th>Closest Gene</th>
+            <th>Distance to Closest Gene</th>
+            <th>Relationship with Closest Gene</th>
+            <th>Regulatory Region?</th>
         </tr>
         <tr>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
+            <td>{{ sample.cleavage_id }}</td>
+            <td>{{ sample.location }}</td>
+            <td>{{ sample.targeting_status }}</td>
+            <td>{{ sample.GS_reads }}</td>
+            <td>{{ sample.closest_gene }}</td>
+            <td>{{ sample.distance_closest_gene }}</td>
+            <td>{{ sample.closest_gene_relationship }}</td>
+            <td>{{ sample.regulatory_region }}</td>
         </tr>
         <tr>
             <td></td>
@@ -67,6 +93,13 @@
 
         <h4>Figure</h4>
         <object id="svg1" data="{{ visualization_path }}" type="image/svg+xml"></object>
+        <p><em>Sequences of off-targets detected by GUIDE-Seq. The full target sequence is displayed in the first row. Each subsequent row indicates a cleaved site detected by GUIDE-Seq. Consensus is represented by a black dot, while nucleotide mismatches are represented by colored squared with the mismatched base. GUIDE-Seq read counts for each cleavage event are listed on the right of each row.</em></p>
+    </section>
     {% endfor %}
+
+    <section>
+        <h3>Footnotes</h3>
+        <p>Footnotes about where reference data came from goes here</p>
+    </section>
 </body>
 </html>
