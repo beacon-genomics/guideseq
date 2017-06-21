@@ -24,7 +24,7 @@ from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML
 
 from gsToBed import gsToBed
-from helpers import countNumberOfLines, countNumberOfLinesInFolder
+from helpers import countNumberOfLines, countNumberOfLinesInFolder, distanceToGene
 
 BEACON_LOGO_PATH = "reporting/images/BeaconGenomicsLogo.png"
 
@@ -35,6 +35,7 @@ def report(manifest_path):
     """
     with open(manifest_path, 'r') as f:
         template_vars = yaml.load(f)
+    print('Parsed manifest')
 
     output_folder = template_vars['output_folder']
 
@@ -55,6 +56,7 @@ def report(manifest_path):
     temp_folder = os.path.join(output_folder, 'tmp')
     if not os.path.exists(temp_folder):
         os.makedirs(temp_folder)
+    print('Setup complete')
 
     """
     GLOBAL STATS
@@ -68,6 +70,8 @@ def report(manifest_path):
     total_cleaved = countNumberOfLinesInFolder(identified_path)
     control_count = countNumberOfLines("test/data/identified/control_identifiedOfftargets.txt")
     template_vars['total_cleaved'] = total_cleaved - (control_count) - (template_vars['samples_count'] - 1)
+
+    print('Calculated global stats')
 
 
     """
@@ -111,10 +115,10 @@ def report(manifest_path):
 
         on_targets = identified_table[identified_table['Mismatches'] == 0]
         off_targets = identified_table[identified_table['Mismatches'] > 0]
+        cleavage_sites = pd.concat([on_targets, off_targets])
 
         sample['ontarget_count'] = on_targets.sum()['bi.sum.mi']
         sample['offtarget_count'] = off_targets.sum()['bi.sum.mi']
-        # print(sample['ontarget_count'])
 
         # Make temp BED file
         bedfile_path = os.path.join(temp_folder, sample_name + '.bed')
@@ -123,17 +127,39 @@ def report(manifest_path):
         # Get gene annotations
         annotation_path = os.path.join(temp_folder, sample_name + '_annotation.bed')
         tmp_command = annotation_command.format(bedfile_path, template_vars['gencode_gtf'], annotation_path)
+        result = subprocess.check_output(tmp_command, shell=True)
+
+        # Read in the annotations
+        annotations = pd.read_csv(annotation_path, sep='\t', index_col=False, header=None)
+
+        # Create the cleavage annotation table
+        sample['cleavage_annotations'] = []
+        for i, cleavage_site in cleavage_sites.iterrows():
+            # Find the corresponding annotation
+            cleavage_id = cleavage_site['#BED Chromosome']
+            is_cleavage = annotations[3] == cleavage_id
+            is_gene = annotations[6] == 'gene'
+            cleavage_annotation = annotations[is_cleavage].head(1)
+
+            print(cleavage_annotation)
+            print(type(cleavage_annotation))
+            cleavage_range = cleavage_id.split(':')[1].split('-')
+            annotation_range = (int(cleavage_annotation.get_value(0,1)), int(cleavage_annotation.get_value(0,2)))
+            gene_distance = distanceToGene(cleavage_range, annotation_range)
+
+            sample['cleavage_annotations'].append({
+                'cleavage_id': cleavage_id,
+                'location': cleavage_site['#BED Chromosome'],
+                'targeting_status': 'On target' if cleavage_site['Mismatches'] == 0 else 'Off target',
+                'gs_reads': 'TODO',
+                'closest_gene': 'gene name',
+                'distance_closest_gene': gene_distance})
+
+            
 
 
 
     template_vars['samples'] = samples
-
-    # Calculate number of on-target sites
-
-
-    # Calculate total number of off-target sites
-
-    # Determine
 
     env = Environment(loader=FileSystemLoader('.'))
     template = env.get_template("reporting/templates/reportTemplate.html")
@@ -152,8 +178,8 @@ def report(manifest_path):
     TEARDOWN
     """
     # Delete temp folder
-    if os.path.exists(temp_folder):
-        shutil.rmtree(temp_folder, ignore_errors=True)
+    # if os.path.exists(temp_folder):
+    #     shutil.rmtree(temp_folder, ignore_errors=True)
 
 def main():
     report(sys.argv[1])

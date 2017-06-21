@@ -27,3 +27,19 @@ def countNumberOfLinesInFolder(folder_path, extension="fastq"):
     for filepath in filepaths:
         count = count + countNumberOfLines(filepath)
     return count
+
+def distanceToGene(annotation_range, gene_range):
+    """
+    Given the ranges of a gene and an annotation, return the distance between the two
+    Based on: https://stackoverflow.com/a/16843530/1224152
+    """
+
+    # First, sort the two ranges, such that the one with the smallest first element is x
+    x, y = sorted((annotation_range, gene_range))
+
+    # Then, if x[1] is between x[0] and y[0], and x[1] != y[0], return difference
+    # Else, return 0
+    if x[0] <= x[1] and x[1] < y[0]:
+        return y[0] - x[1]
+    else:
+        return 0

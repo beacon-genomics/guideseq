@@ -63,7 +63,6 @@
     <h3>Sample {{ loop.index }}: {{ name }}</h3>
         <table>
         <tr>
-            <th>Cleavage ID</th>
             <th>Location</th>
             <th>Targeting Status</th>
             <th>GUIDE-Seq Reads</th>
@@ -72,23 +71,17 @@
             <th>Relationship with Closest Gene</th>
             <th>Regulatory Region?</th>
         </tr>
+        {% for annotation in sample['cleavage_annotations'] %}
         <tr>
-            <td>{{ sample.cleavage_id }}</td>
-            <td>{{ sample.location }}</td>
-            <td>{{ sample.targeting_status }}</td>
-            <td>{{ sample.GS_reads }}</td>
-            <td>{{ sample.closest_gene }}</td>
-            <td>{{ sample.distance_closest_gene }}</td>
-            <td>{{ sample.closest_gene_relationship }}</td>
-            <td>{{ sample.regulatory_region }}</td>
+            <td>{{ annotation.location }}</td>
+            <td>{{ annotation.targeting_status }}</td>
+            <td>{{ annotation.gs_reads }}</td>
+            <td>{{ annotation.closest_gene }}</td>
+            <td>{{ annotation.distance_closest_gene }}</td>
+            <td>{{ annotation.closest_gene_relationship }}</td>
+            <td>{{ annotation.regulatory_region }}</td>
         </tr>
-        <tr>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-        </tr>
+        {% endfor %}
         </table>
 
         <h4>Figure</h4>
